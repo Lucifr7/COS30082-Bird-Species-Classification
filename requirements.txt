@@ -1,0 +1,14 @@
+# Install PyTorch first with CUDA support (the default PyPI wheel on Windows is CPU-only):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+torch
+torchvision
+
+timm            # pretrained CNN backbones (ResNet, EfficientNet, ConvNeXt)
+scikit-learn    # stratified train/validation split, confusion matrix
+matplotlib      # training curves and figures for the report
+pandas          # results tables
+tqdm            # progress bars
+gradio          # web app for Hugging Face Spaces
+grad-cam        # Grad-CAM heatmaps (import name: pytorch_grad_cam)
+jupyter
+ipykernel

@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project: dataset and trained weights are too large for git
+data/
+checkpoints/
+*.pth
+*.pt

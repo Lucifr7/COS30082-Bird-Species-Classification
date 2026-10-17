@@ -1,0 +1,22 @@
+{
+  "name": "e5_convnext_reg",
+  "model": "convnext_tiny.fb_in1k",
+  "best_epoch": 24,
+  "params_total": 27973928,
+  "params_trainable": 27973928,
+  "train": {
+    "top1": 0.9984468221664429,
+    "top5": 0.9997411370277405,
+    "per_class_avg": 0.9985327124595642
+  },
+  "val": {
+    "top1": 0.8726708292961121,
+    "top5": 0.9741200804710388,
+    "per_class_avg": 0.8671666979789734
+  },
+  "test": {
+    "top1": 0.8604651093482971,
+    "top5": 0.9659468531608582,
+    "per_class_avg": 0.8572561144828796
+  }
+}
