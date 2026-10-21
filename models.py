@@ -7,6 +7,7 @@ Phase 3 - Model architectures.
 """
 
 import timm
+import torch
 import torch.nn as nn
 
 NUM_CLASSES = 200
@@ -138,6 +139,34 @@ def get_param_groups(model, lr_head, lr_backbone, weight_decay):
     if backbone:
         groups.append({"params": backbone, "lr": lr_backbone, "weight_decay": weight_decay})
     return groups
+
+
+def load_trained_model(checkpoint_path, device="cpu"):
+    """Rebuild a model from a best.pth checkpoint saved by train.py.
+
+    Returns (model, class_names, args). pretrained=False because the ImageNet weights are
+    about to be overwritten by our own trained weights anyway - no need to download them.
+    """
+    ckpt = torch.load(checkpoint_path, map_location=device)
+    args = ckpt["args"]
+    model = build_model(args["model"], pretrained=False, drop_rate=args["drop_rate"])
+    model.load_state_dict(ckpt["model"])
+    return model.to(device).eval(), ckpt["class_names"], args
+
+
+def get_cam_target_layer(model):
+    """The layer Grad-CAM should look at: the last convolutional stage, just before pooling.
+
+    It is the deepest layer that still has a spatial layout (e.g. 7x7 for a 224 input), so its
+    activations combine high-level meaning ("this is a beak") with where in the image it is.
+    """
+    if isinstance(model, SimpleCNN):
+        return model.features[-1]
+    if hasattr(model, "stages"):   # ConvNeXt
+        return model.stages[-1]
+    if hasattr(model, "layer4"):   # ResNet
+        return model.layer4[-1]
+    raise ValueError(f"No Grad-CAM layer defined for {type(model).__name__}")
 
 
 def count_parameters(model):
