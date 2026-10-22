@@ -10,6 +10,7 @@ Produces in figures/:
     confusion_matrix.png     200x200 confusion matrix of the chosen model
     confused_pairs.csv       the species pairs the model mixes up most often
     confused_examples.png    a mistake next to a training photo of the species it was mistaken for
+    calibration.png/.json    reliability diagram before/after temperature scaling
     gradcam.png              Grad-CAM heatmaps: which pixels drove each prediction
 """
 
@@ -29,7 +30,7 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from sklearn.metrics import confusion_matrix
 
 from dataset import DATA_DIR, IMAGENET_MEAN, IMAGENET_STD, get_dataloaders, get_transforms, load_annotations
-from metrics import per_class_accuracy
+from metrics import expected_calibration_error, fit_temperature, per_class_accuracy
 from models import NUM_CLASSES, get_cam_target_layer, load_trained_model
 from train import evaluate
 
@@ -188,6 +189,55 @@ def plot_confused_examples(pairs, preds, labels, n=5):
 
 
 # ---------------------------------------------------------------------------
+# 3c. Calibration
+# ---------------------------------------------------------------------------
+def reliability_points(logits, labels, n_bins=10):
+    """Per confidence bin: (mean confidence, accuracy, number of images). Used for the diagram."""
+    confidence, preds = torch.softmax(logits, 1).max(1)
+    correct = (preds == labels).float()
+    edges = np.linspace(0, 1, n_bins + 1)
+    points = []
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        m = (confidence > lo) & (confidence <= hi)
+        if m.any():
+            points.append((confidence[m].mean().item(), correct[m].mean().item(), int(m.sum())))
+    return points
+
+
+def analyse_calibration(val_logits, val_labels, test_logits, test_labels):
+    """Fit a temperature on validation, then compare test calibration before and after.
+
+    A reliability diagram plots accuracy against confidence. A perfectly calibrated model lies on
+    the diagonal; points above it mean the model is right more often than it claims (under-confident).
+    """
+    T = fit_temperature(val_logits, val_labels)
+    ece_before = expected_calibration_error(test_logits, test_labels)
+    ece_after = expected_calibration_error(test_logits / T, test_labels)
+    print(f"\nCalibration: temperature T = {T:.3f}   test ECE {ece_before:.3f} -> {ece_after:.3f}")
+    with open(os.path.join(FIG_DIR, "calibration.json"), "w") as f:
+        json.dump({"temperature": T, "test_ece_before": ece_before, "test_ece_after": ece_after}, f, indent=2)
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
+    for ax, lg, title in [(axes[0], test_logits, f"Before (ECE {ece_before:.3f})"),
+                          (axes[1], test_logits / T, f"After temperature scaling, T={T:.2f} (ECE {ece_after:.3f})")]:
+        pts = reliability_points(lg, test_labels)
+        conf, acc, n = zip(*pts)
+        ax.plot([0, 1], [0, 1], "k--", linewidth=1, label="perfect calibration")
+        # marker area proportional to how many images fall in the bin
+        ax.scatter(conf, acc, s=[max(15, k / 2) for k in n], zorder=3, label="confidence bins")
+        ax.plot(conf, acc, zorder=2)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1.02)
+        ax.set_xlabel("Mean confidence of the prediction")
+        ax.set_title(title, fontsize=10)
+    axes[0].set_ylabel("Actual accuracy")
+    axes[0].legend(loc="lower right")
+    fig.tight_layout()
+    fig.savefig(os.path.join(FIG_DIR, "calibration.png"), dpi=150)
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
 # 4. Grad-CAM
 # ---------------------------------------------------------------------------
 def plot_gradcam(model, class_names, preds, labels, img_size, device, n_correct=6, n_wrong=6):
@@ -252,7 +302,8 @@ def main():
 
     print(f"\n=== Detailed analysis of {args.run} ===")
     model, class_names, run_args = load_trained_model(os.path.join(args.run, "best.pth"), device)
-    _, _, test_loader = get_dataloaders(batch_size=32, img_size=run_args["img_size"])
+    _, val_loader, test_loader = get_dataloaders(batch_size=32, img_size=run_args["img_size"])
+    _, _, val_logits, val_labels = evaluate(model, val_loader, device)
     _, test_m, logits, labels = evaluate(model, test_loader, device)
     print(f"Test top1 {test_m['top1']:.4f}  per-class {test_m['per_class_avg']:.4f}  top5 {test_m['top5']:.4f}")
     preds = logits.argmax(1)
@@ -260,6 +311,7 @@ def main():
     analyse_per_class(logits, labels, class_names)
     pairs = analyse_confusions(preds, labels, class_names)
     plot_confused_examples(pairs, preds, labels)
+    analyse_calibration(val_logits, val_labels, logits, labels)
     plot_gradcam(model, class_names, preds, labels, run_args["img_size"], device)
     print(f"\nFigures saved to {FIG_DIR}/")
 

@@ -1,0 +1,7 @@
+# Packages for the Hugging Face Space (gradio and spaces are provided by the Space itself).
+# The Space runs on ZeroGPU, so the normal CUDA build of PyTorch is needed.
+torch
+torchvision
+timm
+grad-cam
+pandas

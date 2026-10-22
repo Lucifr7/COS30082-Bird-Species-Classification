@@ -224,3 +224,6 @@ data/
 checkpoints/
 *.pth
 *.pt
+
+# Submission archive
+*.zip

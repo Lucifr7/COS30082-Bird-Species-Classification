@@ -1,14 +1,16 @@
+# Exact versions used for all experiments (Python 3.12, Windows 11, NVIDIA RTX 3060 6 GB).
 # Install PyTorch first with CUDA support (the default PyPI wheel on Windows is CPU-only):
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
-torch
-torchvision
+#   pip install torch==2.14.1 torchvision==0.29.1 --index-url https://download.pytorch.org/whl/cu126
+torch==2.14.1
+torchvision==0.29.1
 
-timm            # pretrained CNN backbones (ResNet, EfficientNet, ConvNeXt)
-scikit-learn    # stratified train/validation split, confusion matrix
-matplotlib      # training curves and figures for the report
-pandas          # results tables
-tqdm            # progress bars
-gradio          # web app for Hugging Face Spaces
-grad-cam        # Grad-CAM heatmaps (import name: pytorch_grad_cam)
-jupyter
-ipykernel
+timm==1.0.30            # pretrained CNN backbones (ResNet-50, ConvNeXt-Tiny)
+scikit-learn==1.9.1     # stratified train/validation split, confusion matrix
+scipy==1.18.1           # chi-squared distribution for McNemar's test
+numpy==2.5.2
+pandas==3.0.6           # results tables
+pillow==12.3.0          # image loading
+matplotlib==3.11.2      # training curves and report figures
+tqdm==4.70.1
+grad-cam==1.5.7         # Grad-CAM heatmaps (import name: pytorch_grad_cam)
+gradio==6.30.0          # web app (deploy/app.py)
